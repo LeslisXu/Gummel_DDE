@@ -5,6 +5,7 @@
                       Scharfetter-Gummel discretization
 
                         Created on Fri Oct 19, 2018
+                        Enhanced with error analysis
 
                           @author: Timofey Golubev
 
@@ -12,24 +13,19 @@
      of a generic solar cell made of an active layer and electrodes.
     More equations for carrier recombination can be easily added.
     
-    Photogeneration rate will be inputed from an input file (the name of the file can be specified in
-    the parameters input file parameters.inp). For example the output of an optical model or an analytic 
-    expression for photogeneration rate can be used. Generation rate file
-    should contain num_cell-2 number of entries in a single column, corresponding to
-    the the generation rate at each mesh point (except the endpoints).
-    
-    The code can also be applied to non-illuminated devices by
-    setting photogeneration rate to 0.
-
+    Enhanced version includes comprehensive error analysis and residual monitoring
+    for improved convergence diagnostics and solution validation.
 ===================================================================================================
 """
 
 import continuity_n, continuity_p, initialization, photogeneration, poisson, recombination
 import thomas_tridiag_solve as thomas, utilities, constants as const, time
-
+from error_analysis import ErrorAnalysis  # Import the new error analysis module
+from convergence_visualization import *
 import numpy as np, matplotlib.pyplot as plt, math
 
 params = initialization.Params()
+
 num_cell = params.num_cell
 Vbi = params.WF_anode - params.WF_cathode +params.phi_a +params.phi_c
 num_V = math.floor((params.Va_max-params.Va_min)/params.increment) + 1
@@ -38,6 +34,10 @@ params.tolerance_eq = 100*params.tolerance_i
 JV = open("JV.txt", "w") 
 JV.write("# Voltage (V) \t  Current (A/m^2) \n")
 
+# Initialize error analysis system
+error_analyzer = ErrorAnalysis(params, "convergence_analysis.csv")
+print("Error analysis initialized. Results will be saved to convergence_analysis.csv")
+print(f'num_cell = {num_cell}')
 # -------------------------------------------------------------------------------------------------
 # Construct objects
 poiss = poisson.Poisson(params)  
@@ -55,8 +55,16 @@ R_Langevin = np.zeros(num_cell); photogen_rate = np.zeros(num_cell);
 Jp = np.zeros(num_cell); Jn = np.zeros(num_cell);
 J_total = np.zeros(num_cell); error_np_vector = np.zeros(num_cell); 
 
+# Additional arrays for error analysis
+V_prev_iter = np.zeros(num_cell+1)
+n_prev_iter = np.zeros(num_cell)
+p_prev_iter = np.zeros(num_cell)
+
 # Initial conditions
 min_dense = min(cont_n.n_leftBC, cont_p.p_rightBC)
+print(f'Initial value of n and p: min_dense = {min_dense}')
+print(f" NC = params.N_LUMO = { params.N_LUMO}\n NV = params.N_HOMO ={params.N_HOMO } ")
+
 n = min_dense * np.ones(num_cell)
 p = min_dense * np.ones(num_cell)
 
@@ -77,6 +85,9 @@ start =  time.time()
 for Va_cnt in range(0, num_V + 2):
     not_converged = False 
     not_cnv_cnt = 0
+    
+    # Reset iteration counter for new voltage step
+    error_analyzer.reset_iteration_count()
     
     # equilibrium run
     if Va_cnt == 0:
@@ -100,12 +111,17 @@ for Va_cnt in range(0, num_V + 2):
     V[0] = V_leftBC
     V[num_cell] = V_rightBC
     
-    print(f"Va = {Va:2.2f} V")
+    print(f"\nVa = {Va:2.2f} V")
+    print("="*60)
     
     error_np = 1.0
     it = 0
     while error_np > params.tolerance:
-        #print(error_np)
+        
+        # Store previous iteration values for error analysis
+        V_prev_iter = V.copy()
+        n_prev_iter = n.copy()
+        p_prev_iter = p.copy()
         
         #------------------------------ Solve Poisson Equation--------------------------------------
         
@@ -125,6 +141,7 @@ for Va_cnt in range(0, num_V + 2):
         # reset BC's
         V[0] = V_leftBC
         V[num_cell] = V_rightBC
+        
                
         #---------------------------Calculate net generation rate-----------------------------------
         
@@ -174,9 +191,21 @@ for Va_cnt in range(0, num_V + 2):
         n[0] = cont_n.n_leftBC
         # note: we are not including the right boundary point in p and n here
         
+        #--------------------- ERROR ANALYSIS AND LOGGING ------------------------------------
+        
+        # Only perform error analysis after the first iteration (when we have previous values)
+        if it > 0:
+            error_analyzer.log_iteration_data(
+                Va_cnt, Va, V_prev_iter, V, n_prev_iter, n, p_prev_iter, p,
+                poiss, cont_n, cont_p, Un, Up, error_np
+            )
+        
         it += 1
         
         # END of while loop
+    
+    print(f"Converged in {it} iterations")
+    print("="*60)
           
     # ------------- Calculate currents using Scharfetter-Gummel definition-------------------------
         
@@ -197,9 +226,10 @@ for Va_cnt in range(0, num_V + 2):
           
 
 endtime = time.time()
-print(f"Total CPU time: {endtime-start}") 
+print(f"\nTotal CPU time: {endtime-start:.2f} seconds") 
+print(f"Error analysis data saved to: {error_analyzer.csv_filename}")
 JV.close()
-
+create_convergence_visualization(error_analyzer.csv_filename)
 # Plot Results
 V, J = np.loadtxt("JV.txt", usecols=(0,1), unpack = True)  # usecols specifies columns to use, unpack specifies to use tuple unpacking
 plt.xlim(params.Va_min, params.Va_max)
@@ -209,4 +239,3 @@ plt.xlabel('Voltage ($V$)')
 plt.ylabel('Current ($A/m^2$)') # TeX markup
 plt.grid(True)
 plt.savefig("JV.jpg", dpi = 1200) #specify the dpi for a high resolution image
-

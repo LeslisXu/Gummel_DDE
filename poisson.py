@@ -34,8 +34,7 @@ class Poisson():
         
         self.CV = params.N*params.dx*params.dx*const.q/(const.epsilon_0*const.Vt)
                
-        
-    @jit
+    # @jit
     def set_rhs(self, n, p, V_left_BC, V_right_BC):
         '''
         Update the right hand side of the Poisson equation. This is done in every iteration of the 

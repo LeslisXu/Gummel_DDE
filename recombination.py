@@ -16,7 +16,7 @@ class Recombo():
     def __init__(self, params):
         self.R_Langevin = np.zeros(params.num_cell)
     
-    @jit  
+    # @jit  
     def compute_R_Langevin(self, R_Langevin, n, p, N, k_rec, n1, p1):
         '''
         Computes bimolecular Langevin recombination rate.

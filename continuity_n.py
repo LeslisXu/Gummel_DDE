@@ -39,7 +39,7 @@ class Continuity_n():
         self.n_rightBC = (params.N_LUMO*math.exp(-params.phi_c/const.Vt))/params.N
         
  
-    @jit    
+    # @jit    
     def setup_eqn(self, V, Un):
         '''
         Sets up the left and right side of the continuity matrix equation for electrons. The tridiagonal matrix
@@ -64,7 +64,7 @@ class Continuity_n():
         self.upper_diag[1:] = self.n_mob[2:-1]*self.B_n1[2:-1]
         
 
-@jit(nopython = True)
+# @jit(nopython = True)
 def bernoulli_fnc_n(V, B_n1, B_n2):
     '''
     This updates the values of B_n1(V) and B_n2(V) (attributes of Continuity_n class) which are 

@@ -37,7 +37,7 @@ class Continuity_p():
         self.p_leftBC = (params.N_HOMO*np.exp(-params.phi_a/const.Vt))/params.N
         self.p_rightBC = (params.N_HOMO*np.exp(-(params.E_gap - params.phi_c)/const.Vt))/params.N
             
-    @jit
+    # @jit
     def setup_eqn(self, V, Up):
         '''
         Sets up the left and right side of the continuity matrix equation for holes. The tridiagonal matrix
@@ -63,7 +63,7 @@ class Continuity_p():
         
 
 # this is defined outside of the class b/c is faster this way   
-@jit(nopython = True) 
+# @jit(nopython = True) 
 def bernoulli_fnc_p(V, B_p1, B_p2):
     '''
     This updates the values of B_p1(V) and B_p2(V) (attributes of Continuity_p class) which are 
