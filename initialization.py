@@ -182,6 +182,9 @@ class Params():
             self.E_trap = self.active_VB + self.E_gap/2.0 # traps are assumed to be at 1/2 of the bandgap
             self.n1 = self.N_LUMO*np.exp(-(self.active_CB - self.E_trap)/const.Vt)
             self.p1 = self.N_HOMO*np.exp(-(self.E_trap - self.active_VB)/const.Vt)
+            self.thermal_voltage = 0.0259
+            self.contact_doping = 5.0e25
+            self.intrinsic_density = 1.45e16
             
         except:
             print(tmp)

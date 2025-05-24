@@ -24,7 +24,8 @@ from error_analysis import ErrorAnalysis  # Import the new error analysis module
 from convergence_visualization import *
 from generate import *
 import numpy as np, matplotlib.pyplot as plt, math
-
+from quantum.quantum_correction import *
+import quantum.quantum_constant as qconst
 params = initialization.Params()
 
 
@@ -61,11 +62,18 @@ recombo = recombination.Recombo(params)
 cont_p = continuity_p.Continuity_p(params)
 cont_n = continuity_n.Continuity_n(params)
 photogen = photogeneration.get_photogeneration(params)
-
+sim_const = SimulationConstants(dx=params.dx, num_points=num_cell)
+quantum_const = QuantumConstants(delta_n=qconst.delta_n, delta_p=qconst.delta_p)
+qc_calculator = QuantumCorrection(sim_const, quantum_const)
+    
+    
 # initialize arrays
 oldp = np.zeros(num_cell); newp = np.zeros(num_cell); 
 oldn = np.zeros(num_cell); newn = np.zeros(num_cell); 
 oldV = np.zeros(num_cell+1); newV = np.zeros(num_cell+1); V = np.zeros(num_cell+1); 
+oldLambda_n = np.zeros(num_cell); newLambda_n = np.zeros(num_cell); 
+oldLambda_p = np.zeros(num_cell); newLambda_p = np.zeros(num_cell); 
+Lambda_n = np.zeros(num_cell);    Lambda_p = np.zeros(num_cell);
 Un = np.zeros(num_cell); Up = np.zeros(num_cell); 
 R_Langevin = np.zeros(num_cell); photogen_rate = np.zeros(num_cell); 
 Jp = np.zeros(num_cell); Jn = np.zeros(num_cell);
@@ -164,17 +172,48 @@ for Va_cnt in range(0, num_V + 2):
         Un[1:] = photogen_rate[1:] - R_Langevin[1:]
         Up[1:] = photogen_rate[1:] - R_Langevin[1:]
         
+        
         #-----------------Solve equations for electron and hole density (n and p)-------------------
+        
+        oldLambda_n = Lambda_n
+        oldLambda_p = Lambda_p
+        newLambda_n , newLambda_p = qc_calculator.quantum_correction(n_prev_iter, p_prev_iter)
+        
+        # Display results
+        print(f"Lambda_n range: [{np.min(Lambda_n):.2e}, {np.max(Lambda_n):.2e}] V")
+        print(f"Lambda_p range: [{np.min(Lambda_p):.2e}, {np.max(Lambda_p):.2e}] V")
+        Lambda_n[1:num_cell] = newLambda_n[1:num_cell] * params.w + oldLambda_n[1:num_cell] * (1.0 - params.w)
+        Lambda_p[1:num_cell] = newLambda_p[1:num_cell] * params.w + oldLambda_p[1:num_cell] * (1.0 - params.w)
+        # Define the boundary values
+        # Option 1: Small finite value to avoid numerical issues
+        # Lambda_n[0] = 1e-6  # Small positive value in Volts
+        # Lambda_p[0] = 1e-6  # Small positive value in Volts
 
+        # Option 2: Extrapolation from interior (if Neumann-like condition desired)
+        # Lambda_n[0] = Lambda_n[1]  # Zero gradient approximation
+        # Lambda_p[0] = Lambda_p[1]  # Zero gradient approximation
+
+        # Option 3: Physics-based scaling (if contact properties are known)
+        Lambda_n[0] = params.thermal_voltage * np.log(params.contact_doping / params.intrinsic_density)
+        Lambda_p[0] = -params.thermal_voltage * np.log(params.contact_doping / params.intrinsic_density)
+        
+        oldn = n
+        newn[1: num_cell] = n[1: num_cell] * np.exp(const.q * Lambda_n[1: ] / (const.kb * const.T) )
+        oldp = p
+        newp[1: num_cell] = p[1:num_cell ] * np.exp(const.q * Lambda_p[1: num_cell] / (const.kb * const.T) )
+        p[1:num_cell] = newp[1:num_cell]*params.w + oldp[1:num_cell]*(1.0 - params.w)
+        n[1:num_cell] = newn[1:num_cell]*params.w + oldn[1:num_cell]*(1.0 - params.w)
+        
+        #-----------------Solve equations for electron and hole density (n and p)-------------------
+        
         cont_n.setup_eqn(V, Un)  
         oldn = n
-        newn = thomas.thomas_solve(cont_n.main_diag, cont_n.upper_diag, cont_n.lower_diag, cont_n.rhs)
+        newn = thomas.thomas_solve(cont_n.main_diag, cont_n.upper_diag, cont_n.lower_diag, cont_n.rhs) # [1:-1]
         
         cont_p.setup_eqn(V, Up)
         oldp = p
-        newp = thomas.thomas_solve(cont_p.main_diag, cont_p.upper_diag, cont_p.lower_diag, cont_p.rhs)       
-        print(f'3: newn.shape = {newn.shape}\nn.shape = {n.shape}')
-
+        newp = thomas.thomas_solve(cont_p.main_diag, cont_p.upper_diag, cont_p.lower_diag, cont_p.rhs) # [1:-1]       
+        
         # if get negative p's or n's set them = 0
         for val in newp:
             if val < 0.0:
@@ -206,9 +245,8 @@ for Va_cnt in range(0, num_V + 2):
         p[0] = cont_p.p_leftBC
         n[0] = cont_n.n_leftBC
         # note: we are not including the right boundary point in p and n here
-        
         #--------------------- ERROR ANALYSIS AND LOGGING ------------------------------------
-
+        
         # Only perform error analysis after the first iteration (when we have previous values)
         if it > 0:
             error_analyzer.log_iteration_data(
