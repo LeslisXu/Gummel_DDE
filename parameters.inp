@@ -15,7 +15,7 @@
 4.8      WF_anode
 3.7      WF_cathode
 6e-17    k_rec
-1e-11     dx
+1e-12     dx
 -0.5     Va_min
 1.2      Va_max
 0.01     increment
@@ -25,4 +25,3 @@
 2.0      w_reduce_factor
 10.0     tol_relax_factor
 gen_rate.inp  GenRateFileName
-

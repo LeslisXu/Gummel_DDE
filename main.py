@@ -22,9 +22,25 @@ import continuity_n, continuity_p, initialization, photogeneration, poisson, rec
 import thomas_tridiag_solve as thomas, utilities, constants as const, time
 from error_analysis import ErrorAnalysis  # Import the new error analysis module
 from convergence_visualization import *
+from generate import *
 import numpy as np, matplotlib.pyplot as plt, math
 
 params = initialization.Params()
+
+
+generator = PhotogenerationGenerator()
+try:
+    position, gen_rate = generator.generate_from_parameters(
+        params_file='parameters.inp',
+        output_file='gen_rate.inp',
+        model='interference',  # 可选择 'simple' 或 'interference'
+        plot_results=True
+    )
+    
+    print("Photogeneration data generation completed!")
+    
+except Exception as e:
+    print(f"Error during generation process: {e}")
 
 num_cell = params.num_cell
 Vbi = params.WF_anode - params.WF_cathode +params.phi_a +params.phi_c
