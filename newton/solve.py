@@ -144,9 +144,9 @@ for cond in condition_numbers:
     })
 
 # 打印调参结果
-for res in results_tuning:
-    print(f"矩阵目标条件数: {res['condition']:.1e}")
-    print(f"最大奇异值 sigma_max: {res['sigma_max']:.2e}")
-    print(f"最佳正则化参数 lambda: {res['best_lambda']:.2e}")
-    print(f"对应的最小相对误差: {res['best_rel_error']:.2e}")
-    print("-" * 60)
+# for res in results_tuning:
+#     print(f"矩阵目标条件数: {res['condition']:.1e}")
+#     print(f"最大奇异值 sigma_max: {res['sigma_max']:.2e}")
+#     print(f"最佳正则化参数 lambda: {res['best_lambda']:.2e}")
+#     print(f"对应的最小相对误差: {res['best_rel_error']:.2e}")
+#     print("-" * 60)

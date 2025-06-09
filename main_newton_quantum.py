@@ -19,26 +19,26 @@
 ===================================================================================================
 """
 from fig.plot import *
-import continuity_n, continuity_p, initialization, photogeneration, poisson, recombination
+import continuity_n, continuity_p, initialization_newton, photogeneration, poisson, recombination
 import thomas_tridiag_solve as thomas, utilities, constants as const, time
 from error_analysis import ErrorAnalysis  # Import the new error analysis module
 from convergence_visualization import *
 from generate import *
 import numpy as np, matplotlib.pyplot as plt, math
-from quantum.quantum_correction import *
+from quantum.quantum_correction_newton import *
 from newton.jacobian import *
 import quantum.quantum_constant as qconst
 import time
 import os
 from datetime import datetime
 from newton.solve import *
-params = initialization.Params()
+params = initialization_newton.Params()
 
 generator = PhotogenerationGenerator()
 try:
     position, gen_rate = generator.generate_from_parameters(
-        params_file='parameters.inp',
-        output_file='gen_rate.inp',
+        params_file='parameters_Newton.inp',
+        output_file='gen_rate_newton.inp',
         model='interference',  # 可选择 'simple' 或 'interference'
         plot_results=True
     )
@@ -256,7 +256,7 @@ for Va_cnt in range(0, num_V + 2):
         #-----------------Solve equations for electron and hole density (n and p)-------------------
 
         # First, gain the PDE residuals.
-        print(f'num_cell = {num_cell}')
+        print(f'num_cell = {num_cell}\nn.shape = {n.shape}')
         continuity_residuals_n_vector, continuity_residuals_p_vector, possion_residuals_vector = error_analyzer.calculate_pde_residual(
                 Va_cnt, Va, V_prev_iter, V, n_prev_iter, n, p_prev_iter, p,
                 poiss, cont_n, cont_p, Un, Up, error_np
@@ -324,7 +324,8 @@ for Va_cnt in range(0, num_V + 2):
                 poiss, cont_n, cont_p, Un, Up, error_np
             )
             # error_np = min(continuity_residuals_n, continuity_residuals_p, possion_residuals,  )
-            error_np = min(continuity_residuals_n, continuity_residuals_p, possion_residuals)
+            error_np = min(continuity_residuals_n, continuity_residuals_p, possion_residuals )
+           # error_np = max(continuity_residuals_n, continuity_residuals_p, possion_residuals)
         
         it += 1
         print(f'error_np = {error_np}')
